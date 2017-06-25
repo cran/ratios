@@ -1,0 +1,15 @@
+ab26f4b20f76b39c577cec191ad24dfb *DESCRIPTION
+6191da42ba56177d7723c24875bd3b8c *NAMESPACE
+7b7ef61b824367d7310d51dc8a4663c0 *R/CorrectionAdheringParticles.R
+5abf8cc40ffaad083c6051fd72555746 *R/Ratios.R
+3bcfd22ea960193d50672a38ab7256dd *R/Subfunctions.R
+fed70c30ba835a939fedb9796ded9842 *R/pkgname.R
+a03b59e059add68e3dba385befba70d3 *R/sysdata.rda
+10c627de0b9332076e4008f94d7f038e *man/Correction.AdheringParticles.Rd
+3b09e65aa7ee720bfe58170f1ff18aa7 *man/check_readline.Rd
+e077390306b81409cbcf40163e30d411 *man/preparation.DT2.Rd
+e247aec8452e8e294c1f3df04da6381e *man/ratio.DT1_DT2.Rd
+1ecc0e907305a0ee3efb06360c5e519e *man/ratio.append_smallest.Rd
+d2b2989fa5a8812a4aa202ffdfe510c6 *man/ratios-package.Rd
+351d95be822ddf1401bfc6fc30ff4533 *man/relError_dataset.Rd
+1aa849e96245554137c1160d2b11dab5 *man/select.VarsElements.Rd
