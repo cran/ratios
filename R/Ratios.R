@@ -95,8 +95,25 @@ preparation.DT2.data.table <- function(DT1,
 
   if(is.null(vars)){
     vars = select.VarsElements(DT1, DT2)
-    if(length(vars) == 0) stop("please provide for'vars' a character vector with column names")
+    if(length(vars) == 0) stop("please provide for 'vars' a character vector with column names which exist in both DT1 and DT2")
+  }else{
+    vars_DT1 = select.VarsElements(vars, DT1)
+    if(length(vars) != length(vars_DT1)){
+      print.noquote("WARNING: Following 'vars' are not in DT1 and going to be ignored:")
+      print.noquote(vars[!vars %in% vars_DT1])
+      print.noquote("")
+      vars = vars[vars %in% vars_DT1]
+    }
+    vars_DT2 = select.VarsElements(vars, DT2)
+    if(length(vars) != length(vars_DT2)){
+      print.noquote("WARNING: Following 'vars' are not in DT2 and going to be ignored:")
+      print.noquote(vars[!vars %in% vars_DT2])
+      print.noquote("")
+      vars = vars[vars %in% vars_DT2]
+    }
   }
+  if(length(vars) == 0) stop("please provide for 'vars' a character vector with column names which exist in both DT1 and DT2")
+
   isitnumeric <- DT2[,sapply(.SD, class), .SDcols=vars] == "numeric"
   if(all(!isitnumeric)) stop("Please provide at least one variable in'vars' which is numeric.")
   if(!all(isitnumeric)){
@@ -306,14 +323,17 @@ preparation.DT2.default <- function(DT1,
 #' At the moment there are three different options for calculating the ratios:
 #' \itemize{
 #'     \item "simple"
+#'     \item "normalized"
+#'     \item "cr"
 #'     \item "clr"
 #'     \item "alr"
 #' }
 #' For more details please refer to \code{\link{preparation.DT2}} and section Details.
 #'
 #' @inheritParams preparation.DT2
-#' @param ratio_type character vector: "simple" calculates DT1/DT2, "clr" calculates in clr-mode, and "alr" calculated in alr-mode.
-#' For further explanations please read clr and alr in package \code{compositions}.
+#' @param ratio_type character vector of "simple", "log", "ar", "alr", "cr" and "clr".
+#' Please refer to details for explanations.
+#' @param vars.ref reference variable, one out of \code{vars}. Only for \code{ratio_type} "ar" or "alr".
 #' @param STD_DT1 optional, data.frame or data.table object for calculating errors for DT1, e.g. the standards. Please see Details. If left empty a default of 5.2\% relative error is used.
 #' @param STD_DT2 optional, data.frame or data.table object for calculating errors for DT2, e.g. the standards. Please see Details. If left empty a default of 5.2\% relative error is used.
 #' @param return_all logical, should \emph{all} used data sets be returned as a list? Default is FALSE.
@@ -340,20 +360,33 @@ preparation.DT2.default <- function(DT1,
 #' \deqn{
 #' \frac{DT1[vars]}{DT2[vars]}
 #' }
+#' The method "log" is the logarithm of the simple ratio:
+#' \deqn{ ln \left( \frac{DT1[vars]}{DT2[vars]} \right)}
 #'
-#' The methods "clr" and "alr" should be considered if the data contain so called \emph{compositional data} as defined by Aitchison, J. (1986): "The statistical analysis of compositional data".
-#'
-#' The method "clr" is calculated by:
+#' The methods "ar" and "alr" normalize all ratios to one reference column:
+#' ar:
 #' \deqn{
-#'  ln \left(\frac{DT1[vars_{i}]}{DT2[vars_{i}]} * \frac{g(x)^{DT2[vars]}}{g(x)^{DT1[vars]}}\right)_{i=1,\dots, D}
+#' \frac{DT1[vars_{i}]}{DT2[vars_{i}]} * \frac{DT2[vars_n]}{DT1[vars_n]}_{i=1,\dots, n, \dots, D}
 #' }
-#' whereof the function g(x) stands for:
-#' \deqn{g(x) = \sqrt[D]{DT[vars_1] \cdot DT[vars_2] \cdots DT[vars_D]} }
-#'
-#' The method "alr" is calculated by:
+#' alr:
 #' \deqn{
 #' ln \left(\frac{DT1[vars_{i}]}{DT2[vars_{i}]} * \frac{DT2[vars_n]}{DT1[vars_n]}\right)_{i=1,\dots, n, \dots, D}
 #' }
+#'
+#' The methods "cr" and "clr" normalize all ratios to the geometric mean of all columns included by \code{vars}:
+#' "cr" is calculated by:
+#' \deqn{
+#' \frac{DT1[vars_{i}]}{DT2[vars_{i}]} * \frac{g(x)^{DT2[vars]}}{g(x)^{DT1[vars]}}_{i=1,\dots, D}
+#' }
+#' whereof the function g(x) stands for:
+#' \deqn{g(x) = \sqrt[D]{DT[vars_1] \cdot DT[vars_2] \cdots DT[vars_D]} }
+#' and "clr" is calculated by:
+#' \deqn{
+#'  ln \left(\frac{DT1[vars_{i}]}{DT2[vars_{i}]} * \frac{g(x)^{DT2[vars]}}{g(x)^{DT1[vars]}}\right)_{i=1,\dots, D}
+#' }
+#'
+#' The methods "clr" and "alr" should be considered if the data contain so called \emph{compositional data} as defined by Aitchison, J. (1986): "The statistical analysis of compositional data".
+#' They names correspond to the names used in the package \code{compositions} by K. Gerald van den Boogaart, Raimon Tolosana and Matevz Bren.
 #'
 #' Calculating the absolute error for the ratios requires calculating the absolute errors of DT1 and DT2, too.
 #' For calculating the errors of DT1 and DT2 the function \code{\link{relError_dataset}} is used.
@@ -396,6 +429,7 @@ ratio.DT1_DT2 <- function(DT1,
                           group1.vars,
                           group2.vars = NULL,
                           ratio_type = "simple",
+                          vars.ref,
                           Errors = FALSE,
                           Error_method = "gauss",
                           var_subgroup = NULL,
@@ -418,6 +452,7 @@ ratio.DT1_DT2.data.table <- function(DT1,
                                      group1.vars,
                                      group2.vars = NULL,
                                      ratio_type = "simple",
+                                     vars.ref,
                                      Errors = FALSE,
                                      Error_method = "gauss",
                                      var_subgroup = NULL,
@@ -440,26 +475,24 @@ ratio.DT1_DT2.data.table <- function(DT1,
     }
 
   if(missing(group1.vars)){stop("Please provide 'group1.vars'.")}
-  if(!is.character(group1.vars)) stop("'group1.vars' must be a character vector.")
   if(!all(group1.vars %in% names(DT1))) stop(paste("In the data set of the DT1 the column(s)", group1.vars, "is missing"))
   if(!all(group1.vars %in% names(DT2))) stop(paste("In the data set of the DT2 the column(s)", group1.vars, "is missing"))
   for(kol in group1.vars){
-    if(class(DT1[[kol]]) == "factor" | class(DT1[[kol]]) == "character") stop(paste("Column", kol, "in DT1 must be of class 'factor' or 'character'."))
-    if(class(DT2[[kol]]) == "factor" | class(DT2[[kol]]) == "character") stop(paste("Column", kol, "in DT2 must be of class 'factor' or 'character'."))
+    if(!class(DT1[[kol]]) == "factor" & !class(DT1[[kol]]) == "character") stop(paste("Column", kol, "in DT1 must be of class 'factor' or 'character'."))
+    if(!class(DT2[[kol]]) == "factor" & !class(DT2[[kol]]) == "character") stop(paste("Column", kol, "in DT2 must be of class 'factor' or 'character'."))
   }
   if(!is.null(group2.vars)){
-    if(!is.character(group2.vars)) stop("'group2.vars' must be a character vector.")
     if(length(group2.vars) > 1) stop("'group2.vars' must contain only one column name, but length is longer than 1.")
     if(!group2.vars %in% names(DT1)) stop(paste("In the data set of the DT1 the column", group2.vars, "is missing"))
-    if(class(DT1[[group2.vars]]) == "factor" | class(DT1[[group2.vars]]) == "character") stop("Column given in 'group2.vars' in DT1 must be of class 'factor' or 'character'.")
+    if(!class(DT1[[group2.vars]]) == "factor" & !class(DT1[[group2.vars]]) == "character") stop("Column given in 'group2.vars' in DT1 must be of class 'factor' or 'character'.")
     if(!group2.vars %in% names(DT2)) stop(paste("In the data set of the DT2 the column", group2.vars, "is missing"))
-    if(class(DT2[[group2.vars]]) == "factor" | class(DT2[[group2.vars]]) == "character") stop("Column given in 'group2.vars' in DT2 must be of class 'factor' or 'character'.")
+    if(!class(DT2[[group2.vars]]) == "factor" & !class(DT2[[group2.vars]]) == "character") stop("Column given in 'group2.vars' in DT2 must be of class 'factor' or 'character'.")
   }
   if(!is.null(var_subgroup)){
     if(!is.character(var_subgroup)) stop("'var_subgroup' must be a character vector.")
     if(length(var_subgroup)>1) stop("'var_subgroup' must contain only one column name, but length is longer than 1.")
     if(!var_subgroup %in% names(DT1)) stop(paste("In the data set of the DT1 the column", group2.vars, "is missing"))
-    if(class(DT1[[var_subgroup]]) == "factor" | class(DT1[[var_subgroup]]) == "character") stop("Column given in 'var_subgroup' must be of class 'factor' or 'character'.")
+    if(!class(DT1[[var_subgroup]]) == "factor" & !class(DT1[[var_subgroup]]) == "character") stop("Column given in 'var_subgroup' must be of class 'factor' or 'character'.")
   }
   # check if there are congruenting entries in column \code{group1.vars} in DT1 and DT2:
   if(sum(levels(as.factor(droplevels(DT1)[[group1.vars]])) %in% levels(as.factor(droplevels(DT2)[[group1.vars]]))) == 0){
@@ -473,11 +506,27 @@ ratio.DT1_DT2.data.table <- function(DT1,
 
   if(is.null(vars)){
     vars = select.VarsElements(DT1, DT2)
-    if(length(vars) == 0) stop("please provide for 'vars' a character vector with column names")
+    if(length(vars) == 0) stop("please provide for 'vars' a character vector with column names which exist in both DT1 and DT2")
+  }else{
+    vars_DT1 = select.VarsElements(vars, DT1)
+    if(length(vars) != length(vars_DT1)){
+      print.noquote("WARNING: Following 'vars' are not in DT1 and going to be ignored:")
+      print.noquote(vars[!vars %in% vars_DT1])
+      print.noquote("")
+      vars = vars[vars %in% vars_DT1]
+    }
+    vars_DT2 = select.VarsElements(vars, DT2)
+    if(length(vars) != length(vars_DT2)){
+      print.noquote("WARNING: Following 'vars' are not in DT2 and going to be ignored:")
+      print.noquote(vars[!vars %in% vars_DT2])
+      print.noquote("")
+      vars = vars[vars %in% vars_DT2]
+    }
   }
+  if(length(vars) == 0) stop("please provide for 'vars' a character vector with column names which exist in both DT1 and DT2")
   colsinfo = names(DT1)[!names(DT1) %in% vars]
 
-  ratio_type = check_readline(ratio_type, c("simple", "clr", "alr")) # check correct entry
+  ratio_type = check_readline(ratio_type, c("simple", "ar", "alr", "cr", "clr", "log")) # check correct entry
   # make row-numbering for reordering at the end:
   DT1[, "Rows" := c(1:nrow(DT1))]
 
@@ -494,13 +543,13 @@ ratio.DT1_DT2.data.table <- function(DT1,
       for(kol in vars){set(STD_DT2, j = kol, value = c(103.5, 100, 96.5))}
     }
     if(!all(vars %in% names(STD_DT1))){print.noquote("BE AWARE: Some errors of DT1 can't get calculated because not all columns are in STD_DT1.
-                                            Please provide a STD_DT1 which contains all 'vars', or - if you only calculate ratios and don't need the errors set 'Errors = FALSE'.")}
+                                                     Please provide a STD_DT1 which contains all 'vars', or - if you only calculate ratios and don't need the errors set 'Errors = FALSE'.")}
     if(!all(vars %in% names(STD_DT2))){print.noquote("BE AWARE: Some errors of DT2 can't get calculated because not all columns are in STD_DT2.
-                                            Please provide a STD_DT2 which contains all 'vars', or - if you only calculate ratios and don't need the errors set 'Errors = FALSE'.")}
-  }else{
-    STD_DT2 = NULL
-    minNr_DT2 = NULL
-  }
+                                                     Please provide a STD_DT2 which contains all 'vars', or - if you only calculate ratios and don't need the errors set 'Errors = FALSE'.")}
+    }else{
+      STD_DT2 = NULL
+      minNr_DT2 = NULL
+    }
 
   # keying for congruenting sorting
   setkeyv(DT1, group1.vars)
@@ -508,10 +557,10 @@ ratio.DT1_DT2.data.table <- function(DT1,
 
   # prepare second data set for ratios
   DT2_prepared = preparation.DT2(DT1 = DT1, DT2 = DT2, vars = vars,
-                             group1.vars = group1.vars, group2.vars = group2.vars,
-                             use_only_DT2 = use_only_DT2, DT2_replace = DT2_replace,
-                        Errors = Errors,
-                        STD = STD_DT2, minNr = minNr_DT2, return_as_list = TRUE)
+                                 group1.vars = group1.vars, group2.vars = group2.vars,
+                                 use_only_DT2 = use_only_DT2, DT2_replace = DT2_replace,
+                                 Errors = Errors,
+                                 STD = STD_DT2, minNr = minNr_DT2, return_as_list = TRUE)
 
   DT2_prep = DT2_prepared$DT2 # get only the data-set
   if(use_only_DT2){ # make DT1 the same size:
@@ -528,22 +577,61 @@ ratio.DT1_DT2.data.table <- function(DT1,
   if(ratio_type == "simple"){
     for(j in vars){set(psr, j = j, value = DT1[[j]]/DT2_prep[[j]])}
     for(j in vars){set(psr, j = j, i = which(psr[[j]]<= 0), value = NA)}
+  }else{
+    if(sum(is.na(DT1[, (vars), with=F]))>0){ # does DT1 contain NA in vars?
+      NAColumns = colSums(DT1[, sapply(.SD, is.na), .SDcols = vars])
+      if(sum(NAColumns==0) < 0.75 *length(NAColumns)){ # more than 25% of the columns have contain at least for one row NAs
+        stop("There are too many vars in DT1 with NAs. Please make sure you have more columns without NAs.")
+      }else{
+        print.noquote("WARNING! In DT1 there are columns with NAs. If you would like to keep these columns remove the rows which contain the NAs.")
+        print.noquote("Following columns are getting removed:")
+        print.noquote(names(NAColumns)[NAColumns>0])
+        vars = vars[!vars %in% names(NAColumns)[NAColumns>0]]
+      }
+    }
+    if(sum(is.na(DT2_prep[, (vars), with=F]))>0){ # does DT2_prep contain NA in vars?
+      NAColumns = colSums(DT2_prep[, sapply(.SD, is.na), .SDcols = vars])
+      if(sum(NAColumns==0) < 0.75 *length(NAColumns)){ # more than 25% of the columns have contain at least for one row NAs
+        stop("There are too many vars in DT2 with NAs. Please make sure you have more columns without NAs.")
+      }else{
+        print.noquote("WARNING! In DT2 there are columns with NAs. If you would like to keep these columns remove the rows which contain the NAs.")
+        print.noquote("Following columns are getting removed:")
+        print.noquote(names(NAColumns)[NAColumns>0])
+        vars = vars[!vars %in% names(NAColumns)[NAColumns>0]]
+      }
+    }
+  }
+  if(ratio_type == "log"){
+    # MeanDT1 = DT1[, apply(.SD, 1, mean, na.rm = T), .SDcols=vars]
+    # MeanDT2 = DT2_prep[, apply(.SD, 1, mean, na.rm = T), .SDcols=vars]
+    # meanProd = MeanDT2/MeanDT1
+    for(j in vars){set(psr, j = j, value = log(DT1[[j]]/DT2_prep[[j]]))}
+  }
+  if(ratio_type == "cr"){
+    MeanDT1 = abs(DT1[, apply(.SD, 1, prod, na.rm = T), .SDcols=vars])^c(1/length(vars))
+    MeanDT2 = abs(DT2_prep[, apply(.SD, 1, prod, na.rm = T), .SDcols=vars])^c(1/length(vars))
+    meanProd = MeanDT2/MeanDT1
+    for(j in vars){set(psr, j = j, value = c(DT1[[j]]/DT2_prep[[j]]* meanProd))}
   }
   if(ratio_type == "clr"){
-    for(i in c(1:nrow(DT1))){
-      MeanDT1 = prod(abs(DT1[i, vars, with = F]), na.rm = T)^c(1/length(vars))
-      MeanDT2 = prod(abs(DT2_prep[i, vars, with = F]), na.rm = T)^c(1/length(vars))
-      meanProd = MeanDT2/MeanDT1
-      for(j in vars){set(psr, i = as.integer(i), j = j, value = log(DT1[[j]][i]/DT2_prep[[j]][i])* meanProd)}
-    }
+    MeanDT1 = abs(DT1[, apply(.SD, 1, prod, na.rm = T), .SDcols=vars])^c(1/length(vars))
+    MeanDT2 = abs(DT2_prep[, apply(.SD, 1, prod, na.rm = T), .SDcols=vars])^c(1/length(vars))
+    meanProd = MeanDT2/MeanDT1
+    for(j in vars){set(psr, j = j, value = log(abs(DT1[[j]])/abs(DT2_prep[[j]])* meanProd))}
+  }
+  if(ratio_type == "ar"){
+    if(missing(vars.ref)) vars.ref = readline(paste("Please choose one column of", paste(vars, collapse = ", "), "for calculating ar-ratios:   "))
+    vars.ref = check_readline(vars.ref, vars)
+    meanProd = DT2_prep[[vars.ref]]/DT1[[vars.ref]]
+    for(j in vars[-which(vars %in% vars.ref)]){set(psr, j = j, value = DT1[[j]]/DT2_prep[[j]]* meanProd)}
+    psr[,(vars.ref):=NULL]
   }
   if(ratio_type == "alr"){
-    column_norm = readline(paste("Please choose one column of", paste(vars, collapse = ", "), "for calculating alr-ratios:   "))
-    column_norm = check_readline(column_norm, vars)
-    for(i in c(1:nrow(DT1))){
-      meanProd = DT2_prep[[column_norm]][i]/DT1[[column_norm]][i]
-      for(j in vars[-which(vars %in% column_norm)]){set(psr, i = as.integer(i), j = j, value = log(DT1[[j]][i]/DT2_prep[[j]][i])* meanProd)}
-    }
+    if(missing(vars.ref)) vars.ref = readline(paste("Please choose one column of", paste(vars, collapse = ", "), "for calculating alr-ratios:   "))
+    vars.ref = check_readline(vars.ref, vars)
+    meanProd = DT2_prep[[vars.ref]]/DT1[[vars.ref]]
+    for(j in vars[-which(vars %in% vars.ref)]){set(psr, j = j, value = log(DT1[[j]]/DT2_prep[[j]]* meanProd))}
+    psr[,(vars.ref):=NULL]
   }
   print.noquote("Done")
 
@@ -557,7 +645,7 @@ ratio.DT1_DT2.data.table <- function(DT1,
     print.noquote("")
     print.noquote("Calculate error of DT1")
     DT1_rel_error = relError_dataset(Data = DT1, vars = vars, STD = STD_DT1, group1.vars = c(var_subgroup, group1.vars),
-                                minNr = minNr_DT1)
+                                     minNr = minNr_DT1)
     DT1_abs_error = copy(DT1[, vars, with = F])
     for(kol in vars){set(DT1_abs_error, j = kol, value = DT1[[kol]]*DT1_rel_error[[kol]])}
 
@@ -600,6 +688,7 @@ ratio.DT1_DT2.data.frame <- function(DT1,
                                      group1.vars,
                                      group2.vars = NULL,
                                      ratio_type = "simple",
+                                     vars.ref,
                                      Errors = FALSE,
                                      Error_method = "gauss",
                                      var_subgroup = NULL,
@@ -617,7 +706,8 @@ ratio.DT1_DT2.data.frame <- function(DT1,
                           DT2_replace = DT2_replace, group1.vars = group1.vars, group2.vars = group2.vars,
                           var_subgroup = var_subgroup, ratio_type = ratio_type, return_all = return_all,
                           return_as_list = return_as_list, Errors = Errors, Error_method = Error_method,
-                          STD_DT1 = STD_DT1, STD_DT2 = STD_DT2, minNr_DT1 = minNr_DT1, minNr_DT2 = minNr_DT2)
+                          STD_DT1 = STD_DT1, STD_DT2 = STD_DT2, minNr_DT1 = minNr_DT1, minNr_DT2 = minNr_DT2,
+                          vars.ref = vars.ref)
   if(return_all){
     if(Errors) return(list("DT1" = data.frame(myReturn$DT1),
                            "DT2" = data.frame(myReturn$DT2),
@@ -649,6 +739,7 @@ ratio.DT1_DT2.default <- function(DT1,
                                   group1.vars,
                                   group2.vars = NULL,
                                   ratio_type = "simple",
+                                  vars.ref,
                                   Errors = FALSE,
                                   Error_method = "gauss",
                                   var_subgroup = NULL,

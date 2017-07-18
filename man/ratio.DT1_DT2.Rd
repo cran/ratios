@@ -5,7 +5,7 @@
 \title{ratio.DT1_DT2}
 \usage{
 ratio.DT1_DT2(DT1, DT2, vars = NULL, group1.vars, group2.vars = NULL,
-  ratio_type = "simple", Errors = FALSE, Error_method = "gauss",
+  ratio_type = "simple", vars.ref, Errors = FALSE, Error_method = "gauss",
   var_subgroup = NULL, use_only_DT2 = FALSE, DT2_replace = NULL, STD_DT1,
   STD_DT2, minNr_DT1 = 50, minNr_DT2 = 50, return_all = FALSE,
   return_as_list = FALSE)
@@ -22,8 +22,10 @@ Please make sure the columns given in \code{vars} are of class numeric.}
 
 \item{group2.vars}{optional, column name for subsetting DT1 and DT2 if some entries in \code{group1.vars} are empty.}
 
-\item{ratio_type}{character vector: "simple" calculates DT1/DT2, "clr" calculates in clr-mode, and "alr" calculated in alr-mode.
-For further explanations please read clr and alr in package \code{compositions}.}
+\item{ratio_type}{character vector of "simple", "log", "ar", "alr", "cr" and "clr".
+Please refer to details for explanations.}
+
+\item{vars.ref}{reference variable, one out of \code{vars}. Only for \code{ratio_type} "ar" or "alr".}
 
 \item{Errors}{logical, should absolute errors get calculated appended to the list - output? Default is FALSE.
 If Errors are set to TRUE it overrides the option \code{return_as_list} and always returns a list.}
@@ -75,6 +77,8 @@ If DT2 has different number of rows than DT1 a 'new DT2' with corresponding dime
 At the moment there are three different options for calculating the ratios:
 \itemize{
     \item "simple"
+    \item "normalized"
+    \item "cr"
     \item "clr"
     \item "alr"
 }
@@ -88,20 +92,33 @@ The method "simple" is a simple division between DT1 and DT2:
 \deqn{
 \frac{DT1[vars]}{DT2[vars]}
 }
+The method "log" is the logarithm of the simple ratio:
+\deqn{ ln \left( \frac{DT1[vars]}{DT2[vars]} \right)}
 
-The methods "clr" and "alr" should be considered if the data contain so called \emph{compositional data} as defined by Aitchison, J. (1986): "The statistical analysis of compositional data".
-
-The method "clr" is calculated by:
+The methods "ar" and "alr" normalize all ratios to one reference column:
+ar:
 \deqn{
- ln \left(\frac{DT1[vars_{i}]}{DT2[vars_{i}]} * \frac{g(x)^{DT2[vars]}}{g(x)^{DT1[vars]}}\right)_{i=1,\dots, D}
+\frac{DT1[vars_{i}]}{DT2[vars_{i}]} * \frac{DT2[vars_n]}{DT1[vars_n]}_{i=1,\dots, n, \dots, D}
 }
-whereof the function g(x) stands for:
-\deqn{g(x) = \sqrt[D]{DT[vars_1] \cdot DT[vars_2] \cdots DT[vars_D]} }
-
-The method "alr" is calculated by:
+alr:
 \deqn{
 ln \left(\frac{DT1[vars_{i}]}{DT2[vars_{i}]} * \frac{DT2[vars_n]}{DT1[vars_n]}\right)_{i=1,\dots, n, \dots, D}
 }
+
+The methods "cr" and "clr" normalize all ratios to the geometric mean of all columns included by \code{vars}:
+"cr" is calculated by:
+\deqn{
+\frac{DT1[vars_{i}]}{DT2[vars_{i}]} * \frac{g(x)^{DT2[vars]}}{g(x)^{DT1[vars]}}_{i=1,\dots, D}
+}
+whereof the function g(x) stands for:
+\deqn{g(x) = \sqrt[D]{DT[vars_1] \cdot DT[vars_2] \cdots DT[vars_D]} }
+and "clr" is calculated by:
+\deqn{
+ ln \left(\frac{DT1[vars_{i}]}{DT2[vars_{i}]} * \frac{g(x)^{DT2[vars]}}{g(x)^{DT1[vars]}}\right)_{i=1,\dots, D}
+}
+
+The methods "clr" and "alr" should be considered if the data contain so called \emph{compositional data} as defined by Aitchison, J. (1986): "The statistical analysis of compositional data".
+They names correspond to the names used in the package \code{compositions} by K. Gerald van den Boogaart, Raimon Tolosana and Matevz Bren.
 
 Calculating the absolute error for the ratios requires calculating the absolute errors of DT1 and DT2, too.
 For calculating the errors of DT1 and DT2 the function \code{\link{relError_dataset}} is used.

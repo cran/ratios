@@ -78,6 +78,17 @@ select.VarsElements <- function (x, y)
       else stop("x must be of class data.frame, character vector or a named numeric.")
     }
   }
+  Elements = zw1[grep("^[A-Z][a-z]$", zw1)] # look for element patterns
+  Elements = c(Elements, zw1[grep("^[HBCNOFPSKVYIWU]$", zw1)])
+  if(sum(duplicated(Elements))>0){
+    print.noquote("")
+    print.noquote("PLEASE NOTE: In the (first) object there is for some elements more than one entry. Only first column is taken.")
+    print.noquote("Following elements are dropped:")
+    print.noquote(Elements[duplicated(Elements)])
+    Elements = Elements[!duplicated(Elements)]
+    print.noquote("")
+  }
+
   if(!missing(y)){
     if(length(dim(y)) == 2) zw2 = names(y)
     else{
@@ -87,11 +98,22 @@ select.VarsElements <- function (x, y)
         else stop("y must be of class data.frame, character vector or a named numeric.")
       }
     }
-    dieElemente = c(zw1, zw2)[grep("^[A-Z][a-z]?$", c(zw1, zw2))] # look for element patterns
-    dieElemente = dieElemente[duplicated(dieElemente)]
-  }else dieElemente = zw1[grep("^[A-Z][a-z]?$", zw1)] # look for element patterns
+    Elements2 = zw2[grep("^[A-Z][a-z]$", zw2)] # look for element patterns
+    Elements2 = c(Elements2, zw2[grep("^[HBCNOFPSKVYIWU]$", zw2)])
+    if(sum(duplicated(Elements2))>0){
+      print.noquote("")
+      print.noquote("PLEASE NOTE: In the second object there is for some elements more than one entry. Only first column is taken.")
+      print.noquote("Following elements are dropped:")
+      print.noquote(Elements2[duplicated(Elements2)])
+      Elements2 = Elements2[!duplicated(Elements2)]
+      print.noquote("")
+    }
 
-  return(dieElemente[!duplicated(dieElemente)])
+    Elements = c(Elements, Elements2)
+    Elements = Elements[duplicated(Elements)] # take only elements which are in both
+  }
+
+  return(Elements)
 }
 
 

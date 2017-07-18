@@ -139,8 +139,12 @@ Correction.AdheringParticles.data.table <- function(DT1,
                                                     minNr_DT2 = 100)
 {
   if(missing(group1.vars)){stop("Please provide 'group1.vars'.")}
-  if(!is.character(group1.vars)) stop("'group1.vars' must be a character vector.")
-  if(!group1.vars %in% names(DT1)) stop(paste("In the data set of the DT1 the column", group1.vars, "is missing"))
+  if(!all(group1.vars %in% names(DT1))) stop(paste("In the data set of the DT1 the column(s)", group1.vars, "is missing"))
+  if(!all(group1.vars %in% names(DT2))) stop(paste("In the data set of the DT2 the column(s)", group1.vars, "is missing"))
+  for(kol in group1.vars){
+    if(!class(DT1[[kol]]) == "factor" & !class(DT1[[kol]]) == "character") stop(paste("Column", kol, "in DT1 must be of class 'factor' or 'character'."))
+    if(!class(DT2[[kol]]) == "factor" & !class(DT2[[kol]]) == "character") stop(paste("Column", kol, "in DT2 must be of class 'factor' or 'character'."))
+  }
   if(missing(DT2)){
     print.noquote("BE AWARE: no DT2 has been provided. UpperCrust is used as DT2!")
     DT2 = data.table(UpperCrust)
@@ -151,9 +155,11 @@ Correction.AdheringParticles.data.table <- function(DT1,
     }
   if(missing(group2.vars)){group2.vars = NULL}
   if(!is.null(group2.vars)){
-    if(!is.character(group2.vars)) stop("'group2.vars must be a character vector.")
+    if(length(group2.vars) > 1) stop("'group2.vars' must contain only one column name, but length is longer than 1.")
     if(!group2.vars %in% names(DT1)) stop(paste("In the data set of the DT1 the column", group2.vars, "is missing"))
+    if(!class(DT1[[group2.vars]]) == "factor" & !class(DT1[[group2.vars]]) == "character") stop("Column given in 'group2.vars' in DT1 must be of class 'factor' or 'character'.")
     if(!group2.vars %in% names(DT2)) stop(paste("In the data set of the DT2 the column", group2.vars, "is missing"))
+    if(!class(DT2[[group2.vars]]) == "factor" & !class(DT2[[group2.vars]]) == "character") stop("Column given in 'group2.vars' in DT2 must be of class 'factor' or 'character'.")
   }
   # check if there are congruenting entries in column 'group1.vars' in DT1 and DT2:
   if(sum(levels(as.factor(droplevels(DT1)[[group1.vars]])) %in% levels(as.factor(droplevels(DT2)[[group1.vars]]))) == 0){
