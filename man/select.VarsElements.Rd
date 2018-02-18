@@ -4,12 +4,14 @@
 \alias{select.VarsElements}
 \title{select.VarsElements}
 \usage{
-select.VarsElements(x, y)
+select.VarsElements(x, y, invert = FALSE)
 }
 \arguments{
 \item{x}{data.frame, character vector or named numeric containing element abbreviations as variables}
 
 \item{y}{optional, data.frame, character vector or named numeric containing element abbreviations as variables}
+
+\item{invert}{logical. If TRUE return variable names that do not match an element abbreviation pattern}
 }
 \value{
 character vector of element abbreviations
@@ -33,6 +35,7 @@ select.VarsElements(x, y)
 
 myvector = c("Al", "Location", "Date", "S", "Ba", "OH")
 select.VarsElements(myvector)
+select.VarsElements(myvector, invert = TRUE)
 
 }
 \seealso{

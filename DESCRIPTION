@@ -2,7 +2,7 @@ Package: ratios
 Type: Package
 Title: Calculating Ratios Between Two Data Sets and Correction for
         Adhering Particles on Plants
-Version: 1.1.0
+Version: 1.2.0
 Author: Solveig Pospiech [aut, cre], 
         Wiebke Fahlbusch [ctb]
 Maintainer: Solveig Pospiech <s.pospiech@gmx.de>
@@ -16,6 +16,6 @@ RoxygenNote: 6.0.1
 Depends: R (>= 2.10)
 Imports: stringr, data.table
 NeedsCompilation: no
-Packaged: 2017-07-18 16:30:56 UTC; solveig
+Packaged: 2018-02-18 18:32:13 UTC; solveig
 Repository: CRAN
-Date/Publication: 2017-07-18 16:36:07 UTC
+Date/Publication: 2018-02-18 18:39:37 UTC

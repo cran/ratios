@@ -27,8 +27,11 @@
 #' Pospiech, S., Fahlbusch, W., Sauer, B., Pasold, T., & Ruppert, H. (2017). Alteration of trace element concentrations in plants by adhering particles–Methods of correction. \emph{Chemosphere, 182, 501-508}.
 #' and the section Details.
 #'
-#' @inheritParams preparation.DT2
-#' @inheritParams ratio.DT1_DT2
+#' @inheritParams preparationDT2
+#' @param DT2_replace optional, if a DT1 sample does not have DT2 data of the corresponding location with this option you can define which data you would like to use as DT2.
+#' Default is the build-in data set UpperCrust (geochemical composition of the earth's upper crust).
+#' If you would like to have something else, please provide a named vector/ one-row data.table with values used instead of DT2.
+#' @inheritParams ratioDT
 #' @param vars_ignore character vector of column names, only for 'method 3'.
 #' These variables are ignored for calculating the median of amount of DT2 (\emph{x}) in 'method 3'.
 #' Please note: the functions returns corrected values for these columns because they are only ignored for calculating the median of \emph{x}.
@@ -153,6 +156,9 @@ Correction.AdheringParticles.data.table <- function(DT1,
       if(!is.data.frame(DT2)) stop("DT2 must be data.frame or data.table")
       DT2 = data.table(DT2)
     }
+  if(!use_only_DT2){
+    if(missing(DT2_replace)) DT2_replace = UpperCrust
+  }
   if(missing(group2.vars)){group2.vars = NULL}
   if(!is.null(group2.vars)){
     if(length(group2.vars) > 1) stop("'group2.vars' must contain only one column name, but length is longer than 1.")
@@ -177,7 +183,7 @@ Correction.AdheringParticles.data.table <- function(DT1,
     print.noquote("There are two methods available - M1 (M2) and M3.")
     print.noquote("All are described in the Paper 'Alteration of trace element concentrations in
                   DT1 by adhering particles - methods of correction'.")
-    print.noquote("M1 and M2 are in this function the same because which Element is used is determined in the function 'ratio.append_smallest'.")
+    print.noquote("M1 and M2 are in this function the same because which Element is used is determined in the function 'ratio_append_smallest'.")
     print.noquote("M3 is method 3 as described in the paper.")
     print.noquote("'dust' calculates the amount of dust on the leaves.")
     method = readline("Which method you would like to use?")
@@ -187,53 +193,78 @@ Correction.AdheringParticles.data.table <- function(DT1,
   method = check_readline(method, c("m1", "m2", "m3", "subtracted"))
 
   if(method == "m3"){ # calculate necessary with errors:
-    Ratios_list = ratio.DT1_DT2(DT1 = DT1, DT2 = DT2, vars = vars, use_only_DT2 = use_only_DT2, DT2_replace = DT2_replace,
-                                group1.vars = group1.vars, group2.vars = group2.vars, STD_DT1 = STD_DT1, STD_DT2 = STD_DT2,
-                                return_all = T, minNr_DT1 = minNr_DT1, minNr_DT2 = minNr_DT2, Errors = TRUE,
-                                var_subgroup = var_subgroup, Error_method = Error_method, return_as_list = TRUE)
+    if(missing(id.vars)){
+      Ratios_list = ratioDT(DT1 = DT1, DT2 = DT2, vars = vars, use_only_DT2 = use_only_DT2, DT2_replace = DT2_replace,
+                             group1.vars = group1.vars, group2.vars = group2.vars, STD_DT1 = STD_DT1, STD_DT2 = STD_DT2,
+                             return_all = T, minNr_DT1 = minNr_DT1, minNr_DT2 = minNr_DT2, Errors = TRUE,
+                             var_subgroup = var_subgroup, Error_method = Error_method, return_as_list = TRUE)
+    }else{
+      Ratios_list = ratioDT(DT1 = DT1, DT2 = DT2, vars = vars, use_only_DT2 = use_only_DT2, DT2_replace = DT2_replace,
+                             group1.vars = group1.vars, group2.vars = group2.vars, STD_DT1 = STD_DT1, STD_DT2 = STD_DT2,
+                             return_all = T, minNr_DT1 = minNr_DT1, minNr_DT2 = minNr_DT2, Errors = TRUE,
+                             var_subgroup = var_subgroup, Error_method = Error_method, return_as_list = TRUE, id.vars = id.vars)
+    }
+
   }else{ # leave Errors to option
-    Ratios_list = ratio.DT1_DT2(DT1 = DT1, DT2 = DT2, vars = vars, use_only_DT2 = use_only_DT2, DT2_replace = DT2_replace,
-                                group1.vars = group1.vars, group2.vars = group2.vars, STD_DT1 = STD_DT1, STD_DT2 = STD_DT2,
-                                return_all = T, minNr_DT1 = minNr_DT1, minNr_DT2 = minNr_DT2, Errors = Errors,
-                                var_subgroup = var_subgroup, Error_method = Error_method, return_as_list = TRUE)
+    if(missing(id.vars)){
+      Ratios_list = ratioDT(DT1 = DT1, DT2 = DT2, vars = vars, use_only_DT2 = use_only_DT2, DT2_replace = DT2_replace,
+                             group1.vars = group1.vars, group2.vars = group2.vars, STD_DT1 = STD_DT1, STD_DT2 = STD_DT2,
+                             return_all = T, minNr_DT1 = minNr_DT1, minNr_DT2 = minNr_DT2, Errors = Errors,
+                             var_subgroup = var_subgroup, Error_method = Error_method, return_as_list = TRUE)
+    }else{
+      Ratios_list = ratioDT(DT1 = DT1, DT2 = DT2, vars = vars, use_only_DT2 = use_only_DT2, DT2_replace = DT2_replace,
+                             group1.vars = group1.vars, group2.vars = group2.vars, STD_DT1 = STD_DT1, STD_DT2 = STD_DT2,
+                             return_all = T, minNr_DT1 = minNr_DT1, minNr_DT2 = minNr_DT2, Errors = Errors,
+                             var_subgroup = var_subgroup, Error_method = Error_method, return_as_list = TRUE, id.vars = id.vars)
+    }
+
   }
 
-  DT1 = Ratios_list$DT1
   vars = Ratios_list$vars
   cols_taken = vars[!vars %in% vars_ignore]
 
   if(method == c("m1")){
-    ratios = Ratios_list$ratios
-    ratios_error = Ratios_list$ratios_error
     if(missing(element)){
-      element = readline("Correction with which fixed element?   ")}
+      element = readline("Please give one element abbreviation for fixed element for correction (without quotes):   ")}
+    ratios = Ratios_list$ratios
     ratios[, "ratio_smallest" := get(element)]
     ratios[, "ratio_smallest_Elem"  := element]
-    ratios_error[, "ratio_smallest" := get(element)]
-    ratios_error[, "ratio_smallest_Elem"  := element]
+    if(Errors){
+      ratios_error = Ratios_list$ratios_error
+      ratios_error[, "ratio_smallest" := get(element)]
+      ratios_error[, "ratio_smallest_Elem"  := element]
+    }
   }else{
-    Ratios = ratio.append_smallest(Ratios = Ratios_list, vars = cols_taken)
+    if(missing(id.vars)) Ratios = ratio_append_smallest(Ratios = Ratios_list, vars = cols_taken)
+      else Ratios = ratio_append_smallest(Ratios = Ratios_list, vars = cols_taken)
     ratios = Ratios$ratios
-    ratios_error = Ratios$ratios_error
+    if(Errors) ratios_error = Ratios$ratios_error
+    if(method == "m3") ratios_error = Ratios$ratios_error
   }
 
-  DT1_abs_error = Ratios_list$DT1_error
-  DT1_abs_error[, (group1.vars) := DT1[[group1.vars]]]
+  DT1 = Ratios_list$DT1
   # DT2_prep
   DT2_prep = Ratios_list$DT2
-  DT2_prep_abs_error = Ratios_list$DT2_error
+  if(Errors){
+    DT1_abs_error = Ratios_list$DT1_error
+    DT1_abs_error[, (group1.vars) := DT1[[group1.vars]]]
+    DT2_prep_abs_error = Ratios_list$DT2_error
+  }
 
   # add offset
   set(ratios, j = "ratio_smallest", value = ratios$ratio_smallest - offset)
-  set(ratios_error, j = "ratio_smallest", i = which(ratios[["ratio_smallest"]] < 0), value = 0)
   set(ratios, j = "ratio_smallest", i = which(ratios[["ratio_smallest"]] < 0), value = 0)
 
   setkeyv(ratios, group1.vars)
-  setkeyv(ratios_error, group1.vars)
   setkeyv(DT1, group1.vars)
   setkeyv(DT2_prep, group1.vars)
-  setkeyv(DT2_prep_abs_error, group1.vars)
-  setkeyv(DT1_abs_error, group1.vars)
+  if(Errors){
+    set(ratios_error, j = "ratio_smallest", i = which(ratios[["ratio_smallest"]] < 0), value = 0)
+    setkeyv(ratios_error, group1.vars)
+    setkeyv(DT2_prep_abs_error, group1.vars)
+    setkeyv(DT1_abs_error, group1.vars)
+  }
+
 
   # because for values below detection limit the values might be marked as "-xx" all negative values are set to zero:
   for(j in vars){set(DT1, j = j, i = which(DT1[[j]]<0), value = NA)}
@@ -252,12 +283,13 @@ Correction.AdheringParticles.data.table <- function(DT1,
 
     suppressWarnings(sk_DT1[sk_DT1<0]<-0) # set all negtive values to zero
 
-    # absolute error for DT1
-    DT1_abs_error = sqrt(
-      (DT1_abs_error[, vars, with = F]/(1-ratios$ratio_smallest))^2 +
-        ((ratios$ratio_smallest*DT2_prep_abs_error[, vars, with = F])/(1-ratios$ratio_smallest))^2  +
-        (matrix(ratios_error$ratio_smallest/(1-ratios$ratio_smallest)^2, ncol = length(vars), nrow = nrow(sk_DT1)))^2
-    )
+    if(Errors){ # absolute error for DT1
+      DT1_abs_error = sqrt(
+        (DT1_abs_error[, vars, with = F]/(1-ratios$ratio_smallest))^2 +
+          ((ratios$ratio_smallest*DT2_prep_abs_error[, vars, with = F])/(1-ratios$ratio_smallest))^2  +
+          (matrix(ratios_error$ratio_smallest/(1-ratios$ratio_smallest)^2, ncol = length(vars), nrow = nrow(sk_DT1)))^2
+      )
+    }
   }
 
   if(method == "m3"){ # m3 ----
@@ -283,9 +315,11 @@ Correction.AdheringParticles.data.table <- function(DT1,
       if(missing(id.vars)){
         print(DT1[rowSums(zw[, sapply(.SD, is.na), .SDcols = cols_taken]) == length(cols_taken), group1.vars, with = F])
       }else{
+        # print(zw[, sapply(.SD, is.na), .SDcols = cols_taken])
         print(DT1[rowSums(zw[, sapply(.SD, is.na), .SDcols = cols_taken]) == length(cols_taken), c(id.vars, group1.vars), with = F])
       }
     }
+
     ratio_Final = apply(zw, 1, function(x) median(x, na.rm = T)) # median aus allen SF, die im Bereich des Fehlers liegen
     ratio_Final[is.na(ratio_Final)]<-0
 
@@ -295,6 +329,7 @@ Correction.AdheringParticles.data.table <- function(DT1,
     ratio_FinalFehler = ratio_FinalFehler[is.na(ratio_FinalFehler)]<-0
 
     sk_DT1 = (DT1[, vars, with = F]-(ratio_Final*DT2_prep[, vars, with = F]))/(1-ratio_Final)
+
     sk_DT1[, paste(vars) := round(.SD, digits = 10), .SDcols = vars]
 
     if(set_statistical_0){ # values to 0 if there are statistically not distinguishable from 0

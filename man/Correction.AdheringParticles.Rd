@@ -13,9 +13,9 @@ Correction.AdheringParticles(DT1, DT2 = NULL, vars = NULL,
   STD_DT2 = STD_Soil, minNr_DT1 = 100, minNr_DT2 = 100)
 }
 \arguments{
-\item{DT1}{data.frame or data.table, samples in rows and elements and other information in columns}
+\item{DT1}{data.frame or data.table, samples in rows and variables in columns}
 
-\item{DT2}{data.frame or data.table of DT2 or crust data, samples in rows and elements and other information in columns.}
+\item{DT2}{data.frame or data.table, samples in rows and variables in columns.}
 
 \item{vars}{optional, character vector of column names of DT1 and DT2, default is function \code{\link{select.VarsElements}}.
 Please make sure the columns given in \code{vars} are of class numeric.}
@@ -49,7 +49,8 @@ Reasonable offset is e.g. offset = 0.0001}
 \item{use_only_DT2}{logical, default is FALSE. If there are not enough DT2 data of the location should the DT2s of the region be used? If the \code{use_only_DT2} is set to FALSE then the Upper Crust is used for the correction.}
 
 \item{DT2_replace}{optional, if a DT1 sample does not have DT2 data of the corresponding location with this option you can define which data you would like to use as DT2.
-Default is the UpperCrust. If you would like to have something else, please provide a named vector/ one-row data.table with values used instead of DT2}
+Default is the build-in data set UpperCrust (geochemical composition of the earth's upper crust).
+If you would like to have something else, please provide a named vector/ one-row data.table with values used instead of DT2.}
 
 \item{Errors}{logical, should absolute errors get calculated appended to the list - output? Default is FALSE.
 If Errors are set to TRUE it overrides the option \code{return_as_list} and always returns a list.}
@@ -143,9 +144,9 @@ For examples and more information please refer to:
 Pospiech, S., Fahlbusch, W., Sauer, B., Pasold, T., & Ruppert, H. (2017). Alteration of trace element concentrations in plants by adhering particles–Methods of correction. \emph{Chemosphere, 182, 501-508}.
 }
 \seealso{
-Other ratio functions: \code{\link{preparation.DT2}},
-  \code{\link{ratio.DT1_DT2}},
-  \code{\link{ratio.append_smallest}}
+Other ratio functions: \code{\link{preparationDT2}},
+  \code{\link{ratioDT}},
+  \code{\link{ratio_append_smallest}}
 }
 \author{
 Solveig Pospiech

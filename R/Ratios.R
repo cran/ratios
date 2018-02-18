@@ -1,11 +1,17 @@
-#' preparation.DT2
+#' preparationDT2
 #'
 #' @author Solveig Pospiech
 #'
-#' @description The function creates a data set 'new DT2' from the variables \code{vars} of DT2, which has equal number of rows to DT1.
-#' The column \code{group1.vars} (and optional \code{group2.vars}) in DT1 is the look-up table for creating the 'new DT2'.
-#' Generally DT1 and DT2 have to have the columns in common which are given in \code{group1.vars}, optional \code{group2.vars} and \code{vars}.
+#' @description The function creates a data frame 'new DT2' from the variables \code{vars} of the data set DT2 with corresponding rows to the data set DT1,
+#' hence 'new DT2' and DT1 have the same number of rows.
+#' The aim is to generate corresponding rows for two data sets with differing dimensions and even differing number of rows for each group of rows.
+#' For example if for one row i in DT1 there are 3 corresponding rows (j,k,l) in DT2 the function calculates for the 'new DT2' for each variable of \code{vars} an average over the rows j,k and l of DT2,
+#' generating only one row corresponding to the row i in DT1.
+#' If on the other hand for row y in DT2 there are 4 corresponding rows in DT1 the 'new DT2' will contain four times the row y of DT2 matching the four rows of DT1.
+#' The column \code{group1.vars} (and optional \code{group2.vars}) determines which rows of DT1 and DT2 are corresponding, so \code{group1.vars} in DT1 is the look-up table for creating the 'new DT2'.
+#' Generally DT1 and DT2 have to have the columns in common which are given in \code{group1.vars}, \code{group2.vars} and \code{vars}.
 #'
+#' @details
 #' The data set 'new DT2' is generated according to following rules:
 #' If there is more than one row in DT2 with the same entry for \code{group1.vars} for each column in \code{vars} an average (mean) of these rows of DT2 is calculated.
 #' After this operation there is only one row for each entry value of \code{group1.vars}.
@@ -14,10 +20,11 @@
 #' If option \code{use_only_DT2} is set to \code{FALSE}, data from 'DT2_replace' are taken as substitute for DT2 to fill these empty rows.
 #' The default 'DT2_replace' are element concentrations from the UpperCrust (Rudnick, R. L., & Gao, S. 2003. Composition of the continental crust. \emph{Treatise on geochemistry, 3}, 659.)
 #'
-#' @param DT1 data.frame or data.table, samples in rows and elements and other information in columns
-#' @param DT2 data.frame or data.table of DT2 or crust data, samples in rows and elements and other information in columns.
-#' @param DT2_replace optional, if a DT1 sample does not have DT2 data of the corresponding location with this option you can define which data you would like to use as DT2.
-#' Default is the UpperCrust. If you would like to have something else, please provide a named vector/ one-row data.table with values used instead of DT2
+#' @param DT1 data.frame or data.table, samples in rows and variables in columns
+#' @param DT2 data.frame or data.table, samples in rows and variables in columns.
+#' @param DT2_replace mandatory if \code{use_only_DT2} is set to FALSE, serves as substitute for DT2 where DT2 has no corresponding rows to DT1.
+#' A named vector or one-row data.table/ data.frame with the all \code{vars} present.
+#' A column for \code{group1.vars} is not necessary.
 #' @param group1.vars character vector, column name(s) for subsetting DT1 and DT2
 #' @param group2.vars optional, column name for subsetting DT1 and DT2 if some entries in \code{group1.vars} are empty.
 #' @param vars optional, character vector of column names of DT1 and DT2, default is function \code{\link{select.VarsElements}}.
@@ -26,6 +33,10 @@
 #' @param Errors logical, should absolute errors get calculated appended to the list - output? Default is FALSE.
 #' If Errors are set to TRUE it overrides the option \code{return_as_list} and always returns a list.
 #' @param return_as_list logical, should the result get returned as list? Default is FALSE.
+#' @param minNr minimum numbers of samples/observations for calculating a relative error of observations.
+#' If the number of samples of \code{DT2} is smaller than \code{minNr} the error is calculated via the data set STD.
+#' @param STD data set for calculating the relative errors if in DT2 there are less rows per group than \code{minNr}.
+#' This replacement data set could for e.g. consist of reference standards with repeated measurement for each standard.
 #' @inheritParams relError_dataset
 #'
 #' @return data.frame, data.table or a list, controlled by option \code{return_as_list}.
@@ -36,7 +47,7 @@
 #' @family ratio functions
 #' @export
 
-preparation.DT2 <- function(DT1,
+preparationDT2 <- function(DT1,
                             DT2,
                             vars = NULL,
                             group1.vars,
@@ -48,11 +59,11 @@ preparation.DT2 <- function(DT1,
                             STD = NULL,
                             return_as_list = FALSE)
 {
-  UseMethod("preparation.DT2", DT2)
+  UseMethod("preparationDT2", DT2)
 }
 
 #' @export
-preparation.DT2.data.table <- function(DT1,
+preparationDT2.data.table <- function(DT1,
                                        DT2,
                                        vars = NULL,
                                        group1.vars,
@@ -97,6 +108,7 @@ preparation.DT2.data.table <- function(DT1,
     vars = select.VarsElements(DT1, DT2)
     if(length(vars) == 0) stop("please provide for 'vars' a character vector with column names which exist in both DT1 and DT2")
   }else{
+    if(sum(stringr::str_count(vars)>2)>0) stop("Please provide in 'vars' only element abbreviations.")
     vars_DT1 = select.VarsElements(vars, DT1)
     if(length(vars) != length(vars_DT1)){
       print.noquote("WARNING: Following 'vars' are not in DT1 and going to be ignored:")
@@ -127,16 +139,16 @@ preparation.DT2.data.table <- function(DT1,
   DT1[, "Rows" := c(1:nrow(DT1))]
 
   if(!use_only_DT2){
-    if(is.null(DT2_replace)){
-      DT2_replace = UpperCrust[, vars[vars %in% names(UpperCrust)], with = F]
-      if(ncol(DT2_replace) == 0) stop("Given columns names are not columns names of the UpperCrust. Please provide another DT2_replace or different column names.")
-    }else{
-      if(!is.data.frame(DT2_replace)) stop("'DT2_replace' must be data.frame or data.table")
-      if(!is.data.table(DT2_replace)) DT2_replace = data.table(DT2_replace)
-      if(all(!vars %in% names(DT2_replace))) stop("Given columns names are not columns names of the DT2_replace. Please provide another DT2_replace or different column names.")
+    if(is.null(DT2_replace)) stop("Please provide a 'DT2_replace' or set 'use_only_DT2' to TRUE.")
+    else{
+      if(is.matrix(DT2_replace)) stop("'DT2_replace' must be of class named numeric, data.frame or data.table")
+      if(is.null(names(DT2_replace))) stop("'DT2_replace' must be of class named numeric, data.frame or data.table")
+      if(all(!vars %in% names(DT2_replace))) stop("All column names of DT2_replace differ from columns given in 'vars'. Please provide another DT2_replace, different 'vars' or set 'use_only_DT2' to TRUE.")
+      DT2_replace = data.table(DT2_replace)
+      if(ncol(DT2_replace)==1) stop("Please make sure DT2_replace is an object of class data.frame /data.table/ tibble with more than one column!")
     }
     # add empty columns:
-    DT2_replace[, (vars[!vars %in% names(DT2_replace)]) := NA]
+    if(sum(!vars %in% names(DT2_replace))>0) DT2_replace[, (vars[!vars %in% names(DT2_replace)]) := NA]
   }
 
   setkeyv(DT1, group1.vars)
@@ -183,7 +195,7 @@ preparation.DT2.data.table <- function(DT1,
         }
       }else{ # make DT2 also from DT2_replace
         myMessageP = paste0(myMessage, c(": DT2_replace taken as DT2"))
-        DT2Mean = copy(DT2_replace)
+        DT2Mean = DT2_replace
         DT2Mean[, (group1.vars) := Variable]
       }
       print.noquote(myMessageP)
@@ -226,8 +238,10 @@ preparation.DT2.data.table <- function(DT1,
     }
   }
 
+  # prepare set row-orders:
+  DT2_mean_all[, "Rows" := DT1[["Rows"]]]
   if(Errors){
-    suppressWarnings(STD[, (vars[!vars %in% names(STD)]) := NA])
+    if(sum(!vars %in% names(STD))>0) STD[, (vars[!vars %in% names(STD)]) := NA]
     print.noquote("")
     print.noquote("Errors for DT2:")
     error_DT2_rel = relError_dataset(Data = DT2_mean_all,
@@ -239,12 +253,10 @@ preparation.DT2.data.table <- function(DT1,
     setkeyv(error_DT2, group1.vars)
   }
 
-  # set roworders:
-  DT2_mean_all[, "Rows" := DT1[["Rows"]]]
+  # set row-orders:
   setkeyv(DT2_mean_all, "Rows")
   DT2_mean_all[, "Rows" := NULL]
   if(Errors){
-    error_DT2[, "Rows" := DT1[["Rows"]]]
     setkeyv(error_DT2, "Rows")
     error_DT2[, "Rows" := NULL]
   }
@@ -262,7 +274,7 @@ preparation.DT2.data.table <- function(DT1,
 }
 
 #' @export
-preparation.DT2.data.frame <- function(DT1,
+preparationDT2.data.frame <- function(DT1,
                                        DT2,
                                        vars = NULL,
                                        group1.vars,
@@ -275,7 +287,7 @@ preparation.DT2.data.frame <- function(DT1,
                                        return_as_list = FALSE)
 {
   DT2 = data.table(DT2)
-  myReturn=preparation.DT2.data.table(DT1 = DT1,
+  myReturn=preparationDT2.data.table(DT1 = DT1,
                                       DT2 = DT2,
                                       DT2_replace = DT2_replace,
                                       group1.vars = group1.vars,
@@ -297,7 +309,7 @@ preparation.DT2.data.frame <- function(DT1,
 }
 
 #' @export
-preparation.DT2.default <- function(DT1,
+preparationDT2.default <- function(DT1,
                                     DT2,
                                     vars = NULL,
                                     group1.vars,
@@ -313,24 +325,30 @@ preparation.DT2.default <- function(DT1,
 }
 
 
-#' ratio.DT1_DT2
+#' ratioDT
 #'
 #' @author Solveig Pospiech
 #'
-#' @description The function calculates ratio between DT1 and DT2 for all variables specified in \code{vars} by the columns \code{group1.vars} (and optional \code{group2.vars}).
-#' Generally DT1 and DT2 have to have the columns in common which are given in \code{group1.vars}, optional \code{group2.vars} and \code{vars}.
-#' If DT2 has different number of rows than DT1 a 'new DT2' with corresponding dimensions is prepared by the function \code{\link{preparation.DT2}}.
+#' @aliases ratio_DT1_DT2
+#'
+#' @description The function calculates ratios of corresponding variables and corresponding rows between two data sets, DT1 and DT2.
+#' The result is a data set with the same dimensions as DT1.
+#' The variables can be specified by \code{vars}, without specification the subfunction \code{\link{select.VarsElements}} matches column names with element abbreviations.
+#' Which row of DT1 corresponds to which row in DT2 has to be specified by the variable(s) \code{group1.vars} (and optional \code{group2.vars}).
+#' If DT2 has different number of rows than DT1 a 'new DT2' with equal dimensions to DT1 is prepared by the function \code{\link{preparationDT2}}.
 #' At the moment there are three different options for calculating the ratios:
 #' \itemize{
 #'     \item "simple"
-#'     \item "normalized"
+#'     \item "log"
+#'     \item "ar"
+#'     \item "alr"
 #'     \item "cr"
 #'     \item "clr"
-#'     \item "alr"
 #' }
-#' For more details please refer to \code{\link{preparation.DT2}} and section Details.
+#' For more details please refer to \code{\link{preparationDT2}} and section Details.
 #'
-#' @inheritParams preparation.DT2
+#' @inheritParams preparationDT2
+#' @inheritParams Correction.AdheringParticles
 #' @param ratio_type character vector of "simple", "log", "ar", "alr", "cr" and "clr".
 #' Please refer to details for explanations.
 #' @param vars.ref reference variable, one out of \code{vars}. Only for \code{ratio_type} "ar" or "alr".
@@ -353,7 +371,7 @@ preparation.DT2.default <- function(DT1,
 #' If provided, DT1 is split into subsets by \code{group1.vars} \emph{and} 'var_subgroup' and the error will calculated for each of these subset.
 #' Please read in the Details for further information.
 #'
-#' @details To calculate the ratios the functions internally calls \code{\link{preparation.DT2}} to create a data set 'new DT2' from the variables \code{vars} of DT2, which has equal number of rows to DT1.
+#' @details To calculate the ratios the functions internally calls \code{\link{preparationDT2}} to create a data set 'new DT2' from the variables \code{vars} of DT2, which has equal number of rows to DT1.
 #' Then the division is done by the now corresponding data sets by the method given in 'ratio_type'.
 #'
 #' The method "simple" is a simple division between DT1 and DT2:
@@ -408,7 +426,7 @@ preparation.DT2.default <- function(DT1,
 #' If you have in DT1 plant samples with \code{group1.vars = "Location"} the error function would calculate the relative standard deviation for all plants of one location.
 #' But maybe you have very different plants in one location so setting \code{var_subgroup = "Species"} the error function will calculate the relative standard deviation for each plant species per location, if there are more species per location than given in \code{minNr_DT1}.
 #' Suppose DT2 are soil data with several samples per location.
-#' If \code{group1.vars = "Location"} than the function calls \code{\link{preparation.DT2}} and calculates a mean for each location from the data set.
+#' If \code{group1.vars = "Location"} than the function calls \code{\link{preparationDT2}} and calculates a mean for each location from the data set.
 #' The ratio from plant to soil and the absolute errors of the ratios is then calculated for each plant sample to a mean of soils from one location.
 #'
 #' @return The function returns either a data.table, data.frame or a list controlled by the option \code{return_as_list}.
@@ -423,13 +441,14 @@ preparation.DT2.default <- function(DT1,
 #' @family ratio functions
 #' @export
 
-ratio.DT1_DT2 <- function(DT1,
+ratioDT <- function(DT1,
                           DT2,
                           vars = NULL,
                           group1.vars,
                           group2.vars = NULL,
                           ratio_type = "simple",
                           vars.ref,
+                     id.vars,
                           Errors = FALSE,
                           Error_method = "gauss",
                           var_subgroup = NULL,
@@ -442,17 +461,18 @@ ratio.DT1_DT2 <- function(DT1,
                           return_all = FALSE,
                           return_as_list = FALSE)
 {
-  UseMethod("ratio.DT1_DT2", DT1)
+  UseMethod("ratioDT", DT1)
 }
 
 #' @export
-ratio.DT1_DT2.data.table <- function(DT1,
+ratioDT.data.table <- function(DT1,
                                      DT2,
                                      vars = NULL,
                                      group1.vars,
                                      group2.vars = NULL,
                                      ratio_type = "simple",
                                      vars.ref,
+                                id.vars,
                                      Errors = FALSE,
                                      Error_method = "gauss",
                                      var_subgroup = NULL,
@@ -556,7 +576,7 @@ ratio.DT1_DT2.data.table <- function(DT1,
   setkeyv(DT2, group1.vars)
 
   # prepare second data set for ratios
-  DT2_prepared = preparation.DT2(DT1 = DT1, DT2 = DT2, vars = vars,
+  DT2_prepared = preparationDT2(DT1 = DT1, DT2 = DT2, vars = vars,
                                  group1.vars = group1.vars, group2.vars = group2.vars,
                                  use_only_DT2 = use_only_DT2, DT2_replace = DT2_replace,
                                  Errors = Errors,
@@ -621,14 +641,18 @@ ratio.DT1_DT2.data.table <- function(DT1,
   }
   if(ratio_type == "ar"){
     if(missing(vars.ref)) vars.ref = readline(paste("Please choose one column of", paste(vars, collapse = ", "), "for calculating ar-ratios:   "))
+    if(length(vars.ref)>1) stop("Please give only one element as reference element.")
     vars.ref = check_readline(vars.ref, vars)
+    vars = vars[!vars %in% vars.ref]
     meanProd = DT2_prep[[vars.ref]]/DT1[[vars.ref]]
     for(j in vars[-which(vars %in% vars.ref)]){set(psr, j = j, value = DT1[[j]]/DT2_prep[[j]]* meanProd)}
     psr[,(vars.ref):=NULL]
   }
   if(ratio_type == "alr"){
     if(missing(vars.ref)) vars.ref = readline(paste("Please choose one column of", paste(vars, collapse = ", "), "for calculating alr-ratios:   "))
+    if(length(vars.ref)>1) stop("Please give only one element as reference element.")
     vars.ref = check_readline(vars.ref, vars)
+    vars = vars[!vars %in% vars.ref]
     meanProd = DT2_prep[[vars.ref]]/DT1[[vars.ref]]
     for(j in vars[-which(vars %in% vars.ref)]){set(psr, j = j, value = log(DT1[[j]]/DT2_prep[[j]]* meanProd))}
     psr[,(vars.ref):=NULL]
@@ -667,6 +691,22 @@ ratio.DT1_DT2.data.table <- function(DT1,
     print.noquote("Done")
   }
 
+  NA_rows = c(rowSums(is.na(psr[, vars, with = F])) == length(vars))
+  if(sum(NA_rows)>0){
+    print.noquote("Following rows are going to be dropped because no ratios between DT1 and DT2 could be calculated:")
+    if(missing(id.vars)){
+      print(which(NA_rows))
+    }else{
+      print(psr[[id.vars]][NA_rows])
+    }
+    psr = psr[!NA_rows] # drop rows with only NA
+    DT1 = DT1[!NA_rows]
+    DT2_prep = DT2_prep[!NA_rows]
+    if(Errors){
+      DT1_abs_error = DT1_abs_error[!NA_rows]
+    }
+  }
+
   if(return_all){
     if(Errors) return(list("DT1" = DT1, "DT2" = DT2_prep, "vars" = vars, "ratios" = psr, "ratios_error" = ratio_abs_error, "DT1_error" = DT1_abs_error, "DT2_error" = DT2_abs_error))
     else return(list("DT1" = DT1, "DT2" = DT2_prep, "vars" = vars, "ratios" = psr))
@@ -682,13 +722,14 @@ ratio.DT1_DT2.data.table <- function(DT1,
 }
 
 #' @export
-ratio.DT1_DT2.data.frame <- function(DT1,
+ratioDT.data.frame <- function(DT1,
                                      DT2,
                                      vars = NULL,
                                      group1.vars,
                                      group2.vars = NULL,
                                      ratio_type = "simple",
                                      vars.ref,
+                                id.vars,
                                      Errors = FALSE,
                                      Error_method = "gauss",
                                      var_subgroup = NULL,
@@ -702,7 +743,7 @@ ratio.DT1_DT2.data.frame <- function(DT1,
                                      return_as_list = FALSE)
 {
   DT1 = data.table(DT1)
-  myReturn = ratio.DT1_DT2.data.table(DT1 = DT1, DT2 = DT2, vars = vars, use_only_DT2 = use_only_DT2,
+  myReturn = ratioDT.data.table(DT1 = DT1, DT2 = DT2, vars = vars, use_only_DT2 = use_only_DT2,
                           DT2_replace = DT2_replace, group1.vars = group1.vars, group2.vars = group2.vars,
                           var_subgroup = var_subgroup, ratio_type = ratio_type, return_all = return_all,
                           return_as_list = return_as_list, Errors = Errors, Error_method = Error_method,
@@ -733,13 +774,14 @@ ratio.DT1_DT2.data.frame <- function(DT1,
 }
 
 #' @export
-ratio.DT1_DT2.default <- function(DT1,
+ratioDT.default <- function(DT1,
                                   DT2,
                                   vars = NULL,
                                   group1.vars,
                                   group2.vars = NULL,
                                   ratio_type = "simple",
                                   vars.ref,
+                             id.vars,
                                   Errors = FALSE,
                                   Error_method = "gauss",
                                   var_subgroup = NULL,
@@ -755,7 +797,10 @@ ratio.DT1_DT2.default <- function(DT1,
   stop("'DT1' must be a data.frame or a data.table object.")
 }
 
-#' ratio.append_smallest
+#' @export
+ratio_DT1_DT2 = ratioDT
+
+#' ratio_append_smallest
 #'
 #' @author Solveig Pospiech
 #'
@@ -763,8 +808,8 @@ ratio.DT1_DT2.default <- function(DT1,
 #' The name of the column which contained the smallest ratio is appended in the column \emph{ratio_smallest_Elem}.
 #' This function is basically a sub-function for the function \code{\link{Correction.AdheringParticles}}.
 #'
-#' @param Ratios list, data.frame or data.table, which is the output after using the function \code{\link{ratio.DT1_DT2}}
-#' @inheritParams preparation.DT2
+#' @param Ratios list, data.frame or data.table, which is the output after using the function \code{\link{ratioDT}}
+#' @inheritParams preparationDT2
 #'
 #' @return list with [[1]] being the data set from the input with one column added containing the smallest ratio of all variables given in \code{vars}.
 #' If the input was a list with one element named "ratios_error" the returned list contains a second element [[2]] "ratios_error" also with the appended columns.
@@ -772,7 +817,7 @@ ratio.DT1_DT2.default <- function(DT1,
 #' @family ratio functions
 #' @export
 
-ratio.append_smallest <- function(Ratios,
+ratio_append_smallest <- function(Ratios,
                                   vars = NULL)
 {
   Errors = F
@@ -800,7 +845,6 @@ ratio.append_smallest <- function(Ratios,
     }
   }
 
-  Ratios = Ratios[rowSums(is.na(Ratios[, vars, with = F]))!= length(vars)] # drop rows with only NA
   Ratios[, "ratio_smallest" := apply(.SD, 1, function(x) min(x, na.rm = T)), .SDcols = vars]
   Ratios[, "ratio_smallest_Elem" := vars[apply(.SD, 1, function(x) which.min(x))], .SDcols = vars]
   if(Errors){

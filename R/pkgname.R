@@ -8,7 +8,7 @@
 #'
 #' Calculating ratios is at the first glance a simple operation but it becomes quickly more complex if the two data sets don't have corresponding rows or columns.
 #' A set of functions helps to faster and saver calculate ratios:
-#' If for a data set DT1 ratios to a second data set DT2 should be calculated the function \code{\link{preparation.DT2}} creates a 'new DT2' with equal number of rows and corresponding columns to DT1 with entries and mean of entries from DT2.
+#' If for a data set DT1 ratios to a second data set DT2 should be calculated the function \code{\link{preparationDT2}} creates a 'new DT2' with equal number of rows and corresponding columns to DT1 with entries and mean of entries from DT2.
 #' Errors are calculated by the function \code{\link{relError_dataset}} as well for each data set as for the ratios, too.
 #' The function ratio.DT1_DT2 provides methods for six different types of ratios:
 #' 1. simple ratios

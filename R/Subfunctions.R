@@ -54,6 +54,7 @@ check_readline<-function(x, myletters)
 #'
 #' @param x data.frame, character vector or named numeric containing element abbreviations as variables
 #' @param y optional, data.frame, character vector or named numeric containing element abbreviations as variables
+#' @param invert logical. If TRUE return variable names that do not match an element abbreviation pattern
 #'
 #' @examples
 #' x = c("Al", "Ba", "Ca")
@@ -62,13 +63,14 @@ check_readline<-function(x, myletters)
 #'
 #' myvector = c("Al", "Location", "Date", "S", "Ba", "OH")
 #' select.VarsElements(myvector)
+#' select.VarsElements(myvector, invert = TRUE)
 #'
 #' @return character vector of element abbreviations
 #'
 #' @family sub functions
 #' @export
 
-select.VarsElements <- function (x, y)
+select.VarsElements <- function (x, y, invert = FALSE)
 {
   if(length(dim(x)) == 2) zw1 = names(x)
   else{
@@ -78,8 +80,10 @@ select.VarsElements <- function (x, y)
       else stop("x must be of class data.frame, character vector or a named numeric.")
     }
   }
-  Elements = zw1[grep("^[A-Z][a-z]$", zw1)] # look for element patterns
-  Elements = c(Elements, zw1[grep("^[HBCNOFPSKVYIWU]$", zw1)])
+
+  totake = c(grepl("^[A-Z][a-z]$", zw1) | grepl("^[HBCNOFPSKVYIWU]$", zw1)) # look for element patterns
+  if(invert) totake = !totake
+  Elements = zw1[totake]
   if(sum(duplicated(Elements))>0){
     print.noquote("")
     print.noquote("PLEASE NOTE: In the (first) object there is for some elements more than one entry. Only first column is taken.")
@@ -98,8 +102,10 @@ select.VarsElements <- function (x, y)
         else stop("y must be of class data.frame, character vector or a named numeric.")
       }
     }
-    Elements2 = zw2[grep("^[A-Z][a-z]$", zw2)] # look for element patterns
-    Elements2 = c(Elements2, zw2[grep("^[HBCNOFPSKVYIWU]$", zw2)])
+
+    totake = c(grepl("^[A-Z][a-z]$", zw2) | grepl("^[HBCNOFPSKVYIWU]$", zw2)) # look for element patterns
+    if(invert) totake = !totake
+    Elements2 = zw2[totake]
     if(sum(duplicated(Elements2))>0){
       print.noquote("")
       print.noquote("PLEASE NOTE: In the second object there is for some elements more than one entry. Only first column is taken.")
@@ -113,7 +119,7 @@ select.VarsElements <- function (x, y)
     Elements = Elements[duplicated(Elements)] # take only elements which are in both
   }
 
-  return(Elements)
+  return(sort(Elements))
 }
 
 
@@ -133,8 +139,9 @@ select.VarsElements <- function (x, y)
 #'
 #' @param Data a data.frame or matrix with samples (observations) as rows.
 #' @param minNr minimum numbers of samples/observations for calculating a relative error of observations.
-#' If the number of samples of "Data" is smaller than "minNr" the error is calculated via the data set STD.
-#' @param STD replacement data set for calculating errors, e.g. the standards.
+#' If the number of samples of \code{Data} is smaller than \code{minNr} the error is calculated via the data set STD.
+#' @param STD data set for calculating the relative errors if in \code{Data} there are less rows per group than \code{minNr}.
+#' This replacement data set could for e.g. consist of reference standards with repeated measurement for each standard.
 #' @param vars optional, character vector of variables of 'Data' for which the error should be calculated.
 #' If left empty the function \code{\link{select.VarsElements}} will try to find element abbreviations in the variables of 'Data' and 'STD' if STD is provided.
 #' @param group1.vars character vector of variables in 'Data' for splitting 'Data' into subsets. Error will be calculated for each subset.
@@ -202,26 +209,28 @@ relError_dataset.data.table <- function(Data,
     }
   }
 
-  relError = data.table()
+  relError = data.table() # create empty table
   ZW = droplevels(Data)[, .N, by = group1.vars]
-  for(j in names(ZW)[-length(names(ZW))]){set(ZW, j = j, value = as.character(ZW[[j]]))}
-  if(!is.null(group2.vars)){
+  for(j in names(ZW)[-length(names(ZW))]){set(ZW, j = j, value = as.character(ZW[[j]]))} # set all columns except last one to character
+  if(!is.null(group2.vars)){ # do the same for group2.vars
     ZW2 = droplevels(Data)[, .N, by = c(group1.vars, group2.vars)]
     for(j in c(group1.vars, group2.vars)){set(ZW2, j = j, value = as.character(ZW2[[j]]))}
   }
 
-  if(length(group1.vars) > 1){
+  if(length(group1.vars) > 1){ # if the group1.vars contains more than one column character
     group1.vars_original = group1.vars
     group1.vars = paste(group1.vars, collapse = "") # be careful, group1.vars gets replaced
     ZW[, (group1.vars) := apply(.SD, 1, function(x) paste(x, collapse = "")), .SDcols = group1.vars_original]
     Data[, (group1.vars) := apply(.SD, 1, function(x) paste(x, collapse = "")), .SDcols = group1.vars_original]
   }
 
-  if(sum(is.na(ZW[[group1.vars]]))  > 0){
-    Data_error = data.table(t(STD[, sapply(.SD, function(x) mad(x, na.rm = T)/median(x, na.rm = T)), .SDcols = vars]))
-    Data_error[, (group1.vars) := NA]
-    relError = rbindlist(list(relError, Data_error), use.names = T, fill = T)
-    ZW = ZW[!is.na(ZW[[group1.vars]])]
+  if(!missing(STD)){
+    if(sum(is.na(ZW[[group1.vars]]))  > 0){
+      Data_error = data.table(t(STD[, sapply(.SD, function(x) mad(x, na.rm = T)/median(x, na.rm = T)), .SDcols = vars]))
+      Data_error[, (group1.vars) := NA]
+      relError = rbindlist(list(relError, Data_error), use.names = T, fill = T)
+      ZW = ZW[!is.na(ZW[[group1.vars]])]
+    }
   }
 
   for(i in 1:nrow(ZW)){

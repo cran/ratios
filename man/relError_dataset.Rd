@@ -21,9 +21,10 @@ if there are enough entries (> minNr) in the group2 corresponding to group1.
 For example if \code{group1.vars} = "Month" then \code{group2.vars} = "Year" would fill up the gaps if in one month there had been less than 'minNr' observations.}
 
 \item{minNr}{minimum numbers of samples/observations for calculating a relative error of observations.
-If the number of samples of "Data" is smaller than "minNr" the error is calculated via the data set STD.}
+If the number of samples of \code{Data} is smaller than \code{minNr} the error is calculated via the data set STD.}
 
-\item{STD}{replacement data set for calculating errors, e.g. the standards.}
+\item{STD}{data set for calculating the relative errors if in \code{Data} there are less rows per group than \code{minNr}.
+This replacement data set could for e.g. consist of reference standards with repeated measurement for each standard.}
 }
 \value{
 data.frame or data.table with relative errors for each observation of 'Data'.
